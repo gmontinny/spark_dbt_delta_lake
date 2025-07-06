@@ -1,0 +1,21 @@
+version: 2
+
+models:
+  - name: employees
+    description: "A table of employee data"
+    columns:
+      - name: id
+        description: "The primary key for this table"
+        tests:
+          - unique
+          - not_null
+      - name: name
+        description: "Employee full name"
+      - name: age
+        description: "Employee age"
+      - name: city
+        description: "Employee city"
+      - name: salary
+        description: "Employee salary"
+      - name: salary_category
+        description: "Salary category (Low, Medium, High)"

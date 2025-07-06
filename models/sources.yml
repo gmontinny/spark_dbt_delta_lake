@@ -1,0 +1,18 @@
+version: 2
+
+sources:
+  - name: delta_tables
+    description: "Delta Lake tables from Spark pipeline"
+    meta:
+      external_location: "file://{{ env_var('PWD') }}/data"
+    tables:
+      - name: raw_data
+        description: "Raw data in Delta format"
+        external:
+          location: "file://{{ env_var('PWD') }}/data/raw"
+          file_format: delta
+      - name: processed_data
+        description: "Processed data in Delta format"
+        external:
+          location: "file://{{ env_var('PWD') }}/data/processed"
+          file_format: delta

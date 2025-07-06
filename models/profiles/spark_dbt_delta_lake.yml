@@ -1,0 +1,12 @@
+spark_dbt_delta_lake:
+  target: dev
+  outputs:
+    dev:
+      type: spark
+      method: thrift
+      host: localhost
+      port: 10000
+      user: spark
+      schema: default
+      database: spark_dbt_delta_lake
+      threads: 4
