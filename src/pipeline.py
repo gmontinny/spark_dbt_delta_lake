@@ -1,32 +1,32 @@
 """
-Module for orchestrating the entire data pipeline.
+Módulo para orquestração de todo o pipeline de dados.
 """
 
 import os
 import time
-from datetime import datetime
-from src.utils.logger import setup_logger
-from src.utils.spark_session import create_spark_session, stop_spark_session
+
+from config.config import APP_CONFIG
 from src.ingestion.data_reader import DataReader
 from src.transformation.data_transformer import DataTransformer
 from src.utils.dbt_runner import DBTRunner
-from config.config import APP_CONFIG
+from src.utils.logger import setup_logger
+from src.utils.spark_session import create_spark_session, stop_spark_session
 
-# Set up logger
+# Configurar logger
 logger = setup_logger(__name__)
 
 class Pipeline:
     """
-    Class for orchestrating the entire data pipeline.
+    Classe para orquestração de todo o pipeline de dados.
     """
-    
+
     def __init__(self, app_name="SparkDeltaDBT", config=None):
         """
-        Initialize the Pipeline.
-        
+        Inicializa o Pipeline.
+
         Args:
-            app_name (str): Name of the Spark application
-            config (dict, optional): Configuration dictionary
+            app_name (str): Nome da aplicação Spark
+            config (dict, optional): Dicionário de configuração
         """
         self.app_name = app_name
         self.config = config or APP_CONFIG
@@ -34,90 +34,90 @@ class Pipeline:
         self.reader = None
         self.transformer = None
         self.dbt_runner = None
-        
-        logger.info(f"Pipeline initialized with app_name={app_name}")
-    
+
+        logger.info(f"Pipeline inicializado com app_name={app_name}")
+
     def start(self):
         """
-        Start the pipeline by initializing all components.
-        
+        Inicia o pipeline inicializando todos os componentes.
+
         Returns:
-            bool: True if successful, False otherwise
+            bool: True se bem-sucedido, False caso contrário
         """
-        logger.info("Starting pipeline")
-        
+        logger.info("Iniciando pipeline")
+
         try:
-            # Create Spark session
+            # Criar sessão Spark
             self.spark = create_spark_session(app_name=self.app_name)
-            
-            # Initialize components
+
+            # Inicializar componentes
             self.reader = DataReader(
                 spark=self.spark,
                 input_dir=self.config.get('input_directory'),
                 output_dir=os.path.join(os.getcwd(), "data", "raw")
             )
-            
+
             self.transformer = DataTransformer(
                 spark=self.spark,
                 input_dir=os.path.join(os.getcwd(), "data", "raw"),
                 output_dir=os.path.join(os.getcwd(), "data", "processed")
             )
-            
+
             self.dbt_runner = DBTRunner(
                 project_dir=os.path.join(os.getcwd(), "models"),
                 profiles_dir=os.path.join(os.path.expanduser("~"), ".dbt")
             )
-            
-            logger.info("Pipeline started successfully")
+
+            logger.info("Pipeline iniciado com sucesso")
             return True
-        
+
         except Exception as e:
-            logger.error(f"Error starting pipeline: {str(e)}")
+            logger.error(f"Erro ao iniciar pipeline: {str(e)}")
             self.stop()
             raise
-    
+
     def stop(self):
         """
-        Stop the pipeline and clean up resources.
-        
+        Para o pipeline e limpa os recursos.
+
         Returns:
-            bool: True if successful, False otherwise
+            bool: True se bem-sucedido, False caso contrário
         """
-        logger.info("Stopping pipeline")
-        
+        logger.info("Parando pipeline")
+
         try:
-            # Stop Spark session
+            # Parar sessão Spark
             if self.spark:
                 stop_spark_session(self.spark)
                 self.spark = None
-            
-            logger.info("Pipeline stopped successfully")
+
+            logger.info("Pipeline parado com sucesso")
             return True
-        
+
         except Exception as e:
-            logger.error(f"Error stopping pipeline: {str(e)}")
+            logger.error(f"Erro ao parar pipeline: {str(e)}")
             raise
-    
+
     def ingest_data(self, source_path, source_type="csv", options=None):
         """
-        Ingest data from a source into the raw data layer.
-        
+        Ingere dados de uma fonte para a camada de dados brutos.
+
         Args:
-            source_path (str): Path to the source data
-            source_type (str): Type of source data (csv, json, parquet)
-            options (dict, optional): Additional options for reading data
-            
+            source_path (str): Caminho para os dados de origem
+            source_type (str): Tipo de dados de origem (csv, json, parquet)
+            options (dict, optional): Opções adicionais para leitura de dados
+
         Returns:
             tuple: (DataFrame, output_path)
         """
-        logger.info(f"Ingesting data from {source_path}")
-        
+        logger.info(f"Ingerindo dados de {source_path}")
+
         try:
-            # Ensure pipeline is started
+            # Garantir que o pipeline esteja iniciado
             if not self.spark or not self.reader:
                 self.start()
-            
-            # Read data based on source type
+
+            # Ler dados com base no tipo de origem
             if source_type.lower() == "csv":
                 df = self.reader.read_csv(source_path, options=options)
             elif source_type.lower() == "json":
@@ -125,151 +125,151 @@ class Pipeline:
             elif source_type.lower() == "parquet":
                 df = self.reader.read_parquet(source_path, options=options)
             else:
-                raise ValueError(f"Unsupported source type: {source_type}")
-            
-            # Save as raw data
+                raise ValueError(f"Tipo de origem não suportado: {source_type}")
+
+            # Salvar como dados brutos
             source_name = os.path.basename(source_path).split(".")[0]
             output_path = self.reader.save_as_raw(df, source_name)
-            
-            logger.info(f"Successfully ingested data from {source_path} to {output_path}")
+
+            logger.info(f"Dados ingeridos com sucesso de {source_path} para {output_path}")
             return df, output_path
-        
+
         except Exception as e:
-            logger.error(f"Error ingesting data: {str(e)}")
+            logger.error(f"Erro ao ingerir dados: {str(e)}")
             raise
-    
+
     def transform_data(self, df=None, source_path=None, transformations=None, name=None):
         """
-        Transform data from the raw data layer to the processed data layer.
-        
+        Transforma dados da camada de dados brutos para a camada de dados processados.
+
         Args:
-            df (DataFrame, optional): DataFrame to transform
-            source_path (str, optional): Path to the raw data
-            transformations (list, optional): List of transformation functions
-            name (str, optional): Name of the dataset
-            
+            df (DataFrame, optional): DataFrame para transformar
+            source_path (str, optional): Caminho para os dados brutos
+            transformations (list, optional): Lista de funções de transformação
+            name (str, optional): Nome do conjunto de dados
+
         Returns:
             tuple: (DataFrame, output_path)
         """
-        logger.info("Transforming data")
-        
+        logger.info("Transformando dados")
+
         try:
-            # Ensure pipeline is started
+            # Garantir que o pipeline esteja iniciado
             if not self.spark or not self.transformer:
                 self.start()
-            
-            # Get DataFrame if not provided
+
+            # Obter DataFrame se não fornecido
             if df is None and source_path:
                 df = self.spark.read.parquet(source_path)
             elif df is None:
-                raise ValueError("Either df or source_path must be provided")
-            
-            # Clean data
+                raise ValueError("É necessário fornecer df ou source_path")
+
+            # Limpar dados
             df = self.transformer.clean_data(df)
-            
-            # Add metadata columns
-            source_name = name or (os.path.basename(source_path).split("_")[0] if source_path else "unknown")
+
+            # Adicionar colunas de metadados
+            source_name = name or (os.path.basename(source_path).split("_")[0] if source_path else "desconhecido")
             df = self.transformer.add_metadata_columns(df, source_name=source_name)
-            
-            # Apply custom transformations
+
+            # Aplicar transformações personalizadas
             if transformations:
                 df = self.transformer.apply_transformations(df, transformations)
-            
-            # Save as processed data
+
+            # Salvar como dados processados
             output_path = self.transformer.save_as_processed(df, source_name)
-            
-            logger.info(f"Successfully transformed data to {output_path}")
+
+            logger.info(f"Dados transformados com sucesso para {output_path}")
             return df, output_path
-        
+
         except Exception as e:
-            logger.error(f"Error transforming data: {str(e)}")
+            logger.error(f"Erro ao transformar dados: {str(e)}")
             raise
-    
+
     def run_dbt_models(self, models=None, exclude=None, vars=None, full_refresh=False):
         """
-        Run DBT models on the processed data.
-        
+        Executa modelos DBT nos dados processados.
+
         Args:
-            models (list, optional): List of models to run
-            exclude (list, optional): List of models to exclude
-            vars (dict, optional): Variables to pass to DBT
-            full_refresh (bool): Whether to do a full refresh
-            
+            models (list, optional): Lista de modelos para executar
+            exclude (list, optional): Lista de modelos para excluir
+            vars (dict, optional): Variáveis para passar ao DBT
+            full_refresh (bool): Se deve fazer uma atualização completa
+
         Returns:
-            bool: True if successful, False otherwise
+            bool: True se bem-sucedido, False caso contrário
         """
-        logger.info("Running DBT models")
-        
+        logger.info("Executando modelos DBT")
+
         try:
-            # Ensure pipeline is started
+            # Garantir que o pipeline esteja iniciado
             if not self.dbt_runner:
                 self.start()
-            
-            # Run DBT models
+
+            # Executar modelos DBT
             success = self.dbt_runner.run_models(
                 models=models,
                 exclude=exclude,
                 vars=vars,
                 full_refresh=full_refresh
             )
-            
+
             if success:
-                logger.info("Successfully ran DBT models")
+                logger.info("Modelos DBT executados com sucesso")
             else:
-                logger.error("Failed to run DBT models")
-            
+                logger.error("Falha ao executar modelos DBT")
+
             return success
-        
+
         except Exception as e:
-            logger.error(f"Error running DBT models: {str(e)}")
-            return False  # Don't raise, just return False
-    
+            logger.error(f"Erro ao executar modelos DBT: {str(e)}")
+            return False  # Não levanta exceção, apenas retorna False
+
     def run_pipeline(self, source_path, source_type="csv", transformations=None, dbt_models=None):
         """
-        Run the entire pipeline from ingestion to DBT models.
-        
+        Executa todo o pipeline desde a ingestão até os modelos DBT.
+
         Args:
-            source_path (str): Path to the source data
-            source_type (str): Type of source data (csv, json, parquet)
-            transformations (list, optional): List of transformation functions
-            dbt_models (list, optional): List of DBT models to run
-            
+            source_path (str): Caminho para os dados de origem
+            source_type (str): Tipo de dados de origem (csv, json, parquet)
+            transformations (list, optional): Lista de funções de transformação
+            dbt_models (list, optional): Lista de modelos DBT para executar
+
         Returns:
-            bool: True if successful, False otherwise
+            bool: True se bem-sucedido, False caso contrário
         """
-        logger.info(f"Running pipeline for {source_path}")
-        
+        logger.info(f"Executando pipeline para {source_path}")
+
         try:
-            # Start the pipeline
+            # Iniciar o pipeline
             self.start()
-            
-            # Track execution time
+
+            # Rastrear tempo de execução
             start_time = time.time()
-            
-            # Ingest data
+
+            # Ingerir dados
             df, raw_path = self.ingest_data(source_path, source_type)
-            
-            # Transform data
+
+            # Transformar dados
             df, processed_path = self.transform_data(df, transformations=transformations)
-            
-            # Run DBT models
+
+            # Executar modelos DBT
             dbt_success = self.run_dbt_models(models=dbt_models)
-            
-            # Calculate execution time
+
+            # Calcular tempo de execução
             execution_time = time.time() - start_time
-            
-            # Log success
-            logger.info(f"Pipeline completed in {execution_time:.2f} seconds")
-            logger.info(f"Raw data: {raw_path}")
-            logger.info(f"Processed data: {processed_path}")
-            logger.info(f"DBT models: {'Success' if dbt_success else 'Failed'}")
-            
-            # Stop the pipeline
+
+            # Registrar sucesso
+            logger.info(f"Pipeline concluído em {execution_time:.2f} segundos")
+            logger.info(f"Dados brutos: {raw_path}")
+            logger.info(f"Dados processados: {processed_path}")
+            logger.info(f"Modelos DBT: {'Sucesso' if dbt_success else 'Falha'}")
+
+            # Parar o pipeline
             self.stop()
-            
+
             return True
-        
+
         except Exception as e:
-            logger.error(f"Error running pipeline: {str(e)}")
+            logger.error(f"Erro ao executar pipeline: {str(e)}")
             self.stop()
             raise

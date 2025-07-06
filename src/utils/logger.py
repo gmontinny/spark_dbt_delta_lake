@@ -1,5 +1,5 @@
 """
-Utility module for setting up consistent logging across the application.
+Módulo utilitário para configurar logs consistentes em toda a aplicação.
 """
 
 import os
@@ -8,39 +8,39 @@ from config.config import APP_CONFIG
 
 def setup_logger(name, log_file=None):
     """
-    Set up a logger with consistent formatting and handlers.
-    
+    Configura um logger com formatação e manipuladores consistentes.
+
     Args:
-        name (str): Name of the logger, typically __name__
-        log_file (str, optional): Name of the log file. If None, uses the name parameter.
-        
+        name (str): Nome do logger, tipicamente __name__
+        log_file (str, optional): Nome do arquivo de log. Se None, usa o parâmetro name.
+
     Returns:
-        logging.Logger: Configured logger
+        logging.Logger: Logger configurado
     """
-    # Create logger
+    # Criar logger
     logger = logging.getLogger(name)
-    
-    # Only configure if not already configured
+
+    # Configurar apenas se ainda não estiver configurado
     if not logger.handlers:
-        # Set level from config
+        # Definir nível a partir da configuração
         logger.setLevel(getattr(logging, APP_CONFIG['log_level']))
-        
-        # Create formatter
+
+        # Criar formatador
         formatter = logging.Formatter(
             '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
-        
-        # Create file handler
+
+        # Criar manipulador de arquivo
         if log_file is None:
             log_file = f"{name.split('.')[-1]}.log"
-        
+
         file_handler = logging.FileHandler(os.path.join('logs', log_file))
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
-        
-        # Create console handler
+
+        # Criar manipulador de console
         console_handler = logging.StreamHandler()
         console_handler.setFormatter(formatter)
         logger.addHandler(console_handler)
-    
+
     return logger

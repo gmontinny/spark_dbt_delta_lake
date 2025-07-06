@@ -1,5 +1,5 @@
 """
-Utility module for creating and managing Spark sessions with Delta Lake support.
+Módulo utilitário para criar e gerenciar sessões Spark com suporte a Delta Lake.
 """
 
 import os
@@ -8,22 +8,22 @@ from pyspark.sql import SparkSession
 from config.config import ENV_VARS, APP_CONFIG
 from src.utils.logger import setup_logger
 
-# Set up logger
+# Configurar logger
 logger = setup_logger(__name__)
 
 def setup_environment():
     """
-    Set up environment variables required for Spark and Delta Lake.
+    Configurar variáveis de ambiente necessárias para Spark e Delta Lake.
     """
-    logger.info("Setting up environment variables for Spark")
+    logger.info("Configurando variáveis de ambiente para Spark")
 
-    # Set environment variables
+    # Definir variáveis de ambiente
     for key, value in ENV_VARS.items():
         if value:
             os.environ[key] = value
-            logger.debug(f"Set environment variable {key}={value}")
+            logger.debug(f"Variável de ambiente definida {key}={value}")
 
-    # Add Spark and Hadoop to system path if needed
+    # Adicionar Spark e Hadoop ao caminho do sistema se necessário
     if ENV_VARS.get('SPARK_HOME') and ENV_VARS.get('SPARK_HOME') not in sys.path:
         sys.path.append(ENV_VARS.get('SPARK_HOME'))
 
@@ -32,21 +32,21 @@ def setup_environment():
 
 def create_spark_session(app_name="SparkDeltaDBT", enable_hive=True):
     """
-    Create a Spark session with Delta Lake support.
+    Criar uma sessão Spark com suporte a Delta Lake.
 
     Args:
-        app_name (str): Name of the Spark application
-        enable_hive (bool): Whether to enable Hive support
+        app_name (str): Nome da aplicação Spark
+        enable_hive (bool): Se deve habilitar suporte a Hive
 
     Returns:
-        SparkSession: Configured Spark session
+        SparkSession: Sessão Spark configurada
     """
-    logger.info(f"Creating Spark session with app name: {app_name}")
+    logger.info(f"Criando sessão Spark com nome da aplicação: {app_name}")
 
-    # Set up environment variables
+    # Configurar variáveis de ambiente
     setup_environment()
 
-    # Create builder with Delta Lake 3.0.0
+    # Criar builder com Delta Lake 3.0.0
     builder = (
         SparkSession.builder
         .appName(app_name)
@@ -54,9 +54,9 @@ def create_spark_session(app_name="SparkDeltaDBT", enable_hive=True):
         .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
         .config("spark.jars.packages", "io.delta:delta-spark_2.12:3.0.0")
         .config("spark.sql.warehouse.dir", os.path.join(os.getcwd(), "data", "delta"))
-        # Add additional Maven repositories to search for dependencies
+        # Adicionar repositórios Maven adicionais para buscar dependências
         .config("spark.jars.repositories", "https://repo1.maven.org/maven2/,https://packages.delta.io/maven")
-        # Add additional configurations to help with Java gateway issues
+        # Adicionar configurações adicionais para ajudar com problemas de gateway Java
         .config("spark.driver.extraJavaOptions", f"-Dlog4j.configuration=file:{os.path.join(os.getcwd(), 'log4j.properties')} -XX:+UseG1GC")
         .config("spark.executor.extraJavaOptions", f"-Dlog4j.configuration=file:{os.path.join(os.getcwd(), 'log4j.properties')} -XX:+UseG1GC")
         .config("spark.driver.extraClassPath", os.path.join(ENV_VARS.get('SPARK_HOME', ''), "jars", "*"))
@@ -71,27 +71,27 @@ def create_spark_session(app_name="SparkDeltaDBT", enable_hive=True):
         .config("spark.python.worker.reuse", "true")
     )
 
-    # Enable Hive support if requested
+    # Habilitar suporte a Hive se solicitado
     if enable_hive:
         builder = builder.enableHiveSupport()
 
-    # Create session
+    # Criar sessão
     spark = builder.getOrCreate()
 
-    # Set log level
+    # Definir nível de log
     spark.sparkContext.setLogLevel(APP_CONFIG['log_level'])
 
-    logger.info("Spark session created successfully")
+    logger.info("Sessão Spark criada com sucesso")
     return spark
 
 def stop_spark_session(spark):
     """
-    Safely stop a Spark session.
+    Parar com segurança uma sessão Spark.
 
     Args:
-        spark (SparkSession): The Spark session to stop
+        spark (SparkSession): A sessão Spark a ser parada
     """
     if spark is not None:
-        logger.info("Stopping Spark session")
+        logger.info("Parando sessão Spark")
         spark.stop()
-        logger.info("Spark session stopped")
+        logger.info("Sessão Spark parada")
